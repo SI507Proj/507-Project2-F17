@@ -3,6 +3,9 @@
 import requests
 import json
 import unittest
+import logging, sys
+
+logging.basicConfig(stream = sys.stderr, level=logging.DEBUG)
 
 ## Instructions for each piece to be completed for this project can be found in the file, below.
 
@@ -42,28 +45,28 @@ def params_unique_combination(baseurl, params_d, private_keys=["api_key"]):
     return baseurl + "_".join(res)
 
 def sample_get_cache_itunes_data(search_term,media_term="all"):
-	CACHE_FNAME = 'cache_file_name.json'
-	try:
-	    cache_file = open(CACHE_FNAME, 'r')
-	    cache_contents = cache_file.read()
-	    CACHE_DICTION = json.loads(cache_contents)
-	    cache_file.close()
-	except:
-	    CACHE_DICTION = {}
-	baseurl = "https://itunes.apple.com/search"
-	params = {}
-	params["media"] = media_term
-	params["term"] = search_term
-	unique_ident = params_unique_combination(baseurl, params)
-	if unique_ident in CACHE_DICTION:
-		return CACHE_DICTION[unique_ident]
-	else:
-		CACHE_DICTION[unique_ident] = json.loads(requests.get(baseurl, params=params).text)
-		full_text = json.dumps(CACHE_DICTION)
-		cache_file_ref = open(CACHE_FNAME,"w")
-		cache_file_ref.write(full_text)
-		cache_file_ref.close()
-		return CACHE_DICTION[unique_ident]
+    CACHE_FNAME = 'cache_file_name.json'
+    try:
+        cache_file = open(CACHE_FNAME, 'r')
+        cache_contents = cache_file.read()
+        CACHE_DICTION = json.loads(cache_contents)
+        cache_file.close()
+    except:
+        CACHE_DICTION = {}
+    baseurl = "https://itunes.apple.com/search"
+    params = {}
+    params["media"] = media_term
+    params["term"] = search_term
+    unique_ident = params_unique_combination(baseurl, params)
+    if unique_ident in CACHE_DICTION:
+        return CACHE_DICTION[unique_ident]
+    else:
+        CACHE_DICTION[unique_ident] = json.loads(requests.get(baseurl, params=params).text)
+        full_text = json.dumps(CACHE_DICTION)
+        cache_file_ref = open(CACHE_FNAME,"w")
+        cache_file_ref.write(full_text)
+        cache_file_ref.close()
+        return CACHE_DICTION[unique_ident]
 
 
 ## [PROBLEM 1] [250 POINTS]
@@ -86,6 +89,29 @@ print("\n***** PROBLEM 1 *****\n")
 ## - a special len method, which, for the Media class, returns 0 no matter what. (The length of an audiobook might mean something different from the length of a song, depending on how you want to define them!)
 ## - a special contains method (for the in operator) which takes one additional input, as all contains methods must, which should always be a string, and checks to see if the string input to this contains method is INSIDE the string representing the title of this piece of media (the title instance variable)
 
+class Media(object):
+    def __init__(self, media_piece):
+        self.title = media_piece['trackName']
+
+        self.author = media_piece['artistName']
+        self.itunes_URL = media_piece['trackViewUrl']
+        self.itunes_id = media_piece['trackId']
+
+        if 'trackTimeMillis' in media_piece:
+            self.track_time_ms = media_piece['trackTimeMillis']
+        else:
+            self.track_time_ms = None
+    def __str__(self):
+        return '{} by {}'.format(self.title, self.author)
+
+    def __repr__(self):
+        return 'ITUNES MEDIA: {}'.format(self.itunes_id)
+
+    def __len__(self):
+        return 0
+
+    def __contains__(self, word):
+        return word in self.title
 
 
 ## [PROBLEM 2] [400 POINTS]
@@ -109,7 +135,19 @@ print("\n***** PROBLEM 2 *****\n")
 
 ## Should have the len method overridden to return the number of seconds in the song. (HINT: The data supplies number of milliseconds in the song... How can you access that data and convert it to seconds?)
 
-
+class Song(Media):
+    def __init__(self, song_piece):
+        Media.__init__(self, song_piece)
+        self.album = song_piece['collectionName']
+        self.track_number = song_piece['trackNumber']
+        self.genre = song_piece['primaryGenreName']
+    def __len__(self):
+        if self.track_time_ms is not None:
+            time = self.track_time_ms / 1000.0
+        else:
+            time = 0
+        logging.debug(time)
+        return int(time)
 
 ### class Movie:
 
@@ -123,6 +161,30 @@ print("\n***** PROBLEM 2 *****\n")
 
 ## Should have an additional method called title_words_num that returns an integer representing the number of words in the movie description. If there is no movie description, this method should return 0.
 
+class Movie(Media):
+    def __init__(self, movie_piece):
+        Media.__init__(self, movie_piece)
+        self.rating = movie_piece['contentAdvisoryRating']
+        self.genre = movie_piece['primaryGenreName']
+        if 'longDescription' in movie_piece:
+            self.description = movie_piece['longDescription'].encode('UTF-8')
+        else:
+            self.description = None
+    def __len__(self):
+        if self.track_time_ms is not None:
+            time = self.track_time_ms / (1000.0 * 60)
+        else:
+            time = 0
+        logging.debug(time)
+        return int(time)
+
+    def title_words_num(self):
+        if self.description is not None:
+            logging.debug(len(self.description.split()))
+            return len(self.description.split())
+        else:
+            logging.debug(0)
+            return 0
 
 
 ## [PROBLEM 3] [150 POINTS]
@@ -151,6 +213,31 @@ movie_samples = sample_get_cache_itunes_data("love","movie")["results"]
 
 ## You may use any method of accumulation to make that happen.
 
+media_list = []
+song_list = []
+movie_list = []
+
+for piece in media_samples:
+    logging.debug("Create Media object")
+    logging.debug(piece)
+    try:
+        media_list.append(Media(piece))
+    except Exception as e:
+        print('Error %s', str(e))
+
+for piece in song_samples:
+    logging.debug("Create Song object")
+    try:
+        song_list.append(Song(piece))
+    except Exception as e:
+        print('Error %s', str(e))
+
+for piece in movie_samples:
+    logging.debug("Create Movie object")
+    try:
+        movie_list.append(Movie(piece))
+    except Exception as e:
+        print('Error %s', str(e))
 
 
 
@@ -183,17 +270,14 @@ print("\n***** PROBLEM 4 *****\n")
 
 ## HINT #4: Write or draw out your plan for this before you actually start writing the code! That will make it much easier.
 
+def create_csv_file(file_name, list):
+    with open(file_name, 'w') as csv_file:
+        csv_file.write('title, artist, id, url, length\n')
+        for piece in list:
+            csv_file.write('\"{}\", \"{}\", {}, {}, {}\n'.format(piece.title, piece.author,
+                           piece.itunes_id, piece.itunes_URL, len(piece)))
 
-
-
-
-
-
-
-
-
-
-
-
-
+create_csv_file('media.csv', media_list)
+create_csv_file('songs.csv', song_list)
+create_csv_file('movies.csv', movie_list)
 
