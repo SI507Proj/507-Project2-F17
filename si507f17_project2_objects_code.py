@@ -137,7 +137,7 @@ print("\n***** PROBLEM 2 *****\n")
 
 class Song(Media):
     def __init__(self, song_piece):
-        Media.__init__(self, song_piece)
+        super().__init__(song_piece)
         self.album = song_piece['collectionName']
         self.track_number = song_piece['trackNumber']
         self.genre = song_piece['primaryGenreName']
@@ -163,7 +163,7 @@ class Song(Media):
 
 class Movie(Media):
     def __init__(self, movie_piece):
-        Media.__init__(self, movie_piece)
+        super().__init__(movie_piece)
         self.rating = movie_piece['contentAdvisoryRating']
         self.genre = movie_piece['primaryGenreName']
         if 'longDescription' in movie_piece:
